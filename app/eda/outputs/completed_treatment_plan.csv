@@ -1,0 +1,8 @@
+column_group,columns,diagnosis,suggested_treatment
+Rows,"CANCELLED, DIVERTED, ARRIVAL_DELAY","Project focuses on flight delay, so use completed flights only.","Keep rows with CANCELLED = 0, DIVERTED = 0 and ARRIVAL_DELAY not null."
+Cancellation,"CANCELLED, DIVERTED, CANCELLATION_REASON",Constant or not relevant after filtering completed flights.,Drop from the completed analytical dataset.
+Delay causes,"AIR_SYSTEM_DELAY, SECURITY_DELAY, AIRLINE_DELAY, LATE_AIRCRAFT_DELAY, WEATHER_DELAY",Null means no reported delay cause in completed flights.,Fill null with 0 for EDA. Avoid as pre-flight model features.
+Aircraft,TAIL_NUMBER,Small amount of missing aircraft identifiers.,Fill null with UNKNOWN if used as category.
+Airport enrichments,"ORIGIN_*, DESTINATION_*",Missing joins indicate airport codes not present in airports.csv.,Use 3-letter IATA records for airport/city/state/geographic analyses.
+Extreme delays,"DEPARTURE_DELAY, ARRIVAL_DELAY","Extreme values are operationally meaningful, not necessarily errors.","Keep for EDA, report median and percentiles, optionally clip for regression."
+Operational actuals,"DEPARTURE_TIME, TAXI_OUT, WHEELS_OFF, WHEELS_ON, TAXI_IN, ARRIVAL_TIME",Known only after operation starts or ends.,Useful for explanatory EDA. Avoid in pre-flight prediction models.
