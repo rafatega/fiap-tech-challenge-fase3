@@ -251,7 +251,8 @@ def show_confusion_matrix_with_percentages(
 ) -> None:
     matrix = estimated_confusion_matrix_from_metrics(metrics, profile_values)
     if matrix is None:
-        st.info("Não foi possível estimar os percentuais da matriz de confusão com os arquivos disponíveis.")
+        st.info(
+            "Não foi possível estimar os percentuais da matriz de confusão com os arquivos disponíveis.")
         return
 
     total = matrix.to_numpy().sum()
@@ -1116,7 +1117,8 @@ def ml_supervised_tab() -> None:
     display_metrics = metrics.copy()
     metric_cols = ["accuracy", "precision", "recall", "f1", "roc_auc"]
     for col in metric_cols:
-        display_metrics[col] = pd.to_numeric(display_metrics[col], errors="coerce")
+        display_metrics[col] = pd.to_numeric(
+            display_metrics[col], errors="coerce")
     st.dataframe(
         display_metrics[["model", *metric_cols]].round(4),
         use_container_width=True,
@@ -1271,10 +1273,12 @@ def ml_unsupervised_tab() -> None:
     if elbow_results_path.exists():
         elbow_results = load_csv(str(elbow_results_path))
         recommended_rows = elbow_results[
-            elbow_results["recommended_by_elbow"].astype(str).str.lower() == "true"
+            elbow_results["recommended_by_elbow"].astype(
+                str).str.lower() == "true"
         ]
         recommended_k = (
-            int(recommended_rows.iloc[0]["k"]) if not recommended_rows.empty else None
+            int(recommended_rows.iloc[0]["k"]
+                ) if not recommended_rows.empty else None
         )
         st.markdown(
             f"""
@@ -1286,7 +1290,8 @@ def ml_unsupervised_tab() -> None:
             """
         )
         st.dataframe(
-            elbow_results[["k", "inertia", "silhouette_score", "recommended_by_elbow"]].round(4),
+            elbow_results[["k", "inertia", "silhouette_score",
+                           "recommended_by_elbow"]].round(4),
             use_container_width=True,
             hide_index=True,
         )
@@ -1296,12 +1301,14 @@ def ml_unsupervised_tab() -> None:
     elbow_cols = st.columns(2)
     with elbow_cols[0]:
         if elbow_png_path.exists():
-            st.image(str(elbow_png_path), caption="Curva do cotovelo", use_container_width=True)
+            st.image(str(elbow_png_path), caption="Curva do cotovelo",
+                     use_container_width=True)
         else:
             st.info("Imagem da curva do cotovelo não encontrada.")
     with elbow_cols[1]:
         if silhouette_png_path.exists():
-            st.image(str(silhouette_png_path), caption="Silhouette por k", use_container_width=True)
+            st.image(str(silhouette_png_path),
+                     caption="Silhouette por k", use_container_width=True)
         else:
             st.info("Imagem de silhouette por k não encontrada.")
 
@@ -1367,7 +1374,8 @@ def ml_critical_tab() -> None:
         )
 
         important_tail = outlier_tail[
-            outlier_tail["feature"].isin(["DEPARTURE_DELAY", "TAXI_OUT", "WHEELS_OFF", "DISTANCE"])
+            outlier_tail["feature"].isin(
+                ["DEPARTURE_DELAY", "TAXI_OUT", "WHEELS_OFF", "DISTANCE"])
         ].copy()
         st.markdown(
             "A leitura das caudas mostrou que extremos de `DEPARTURE_DELAY` e `TAXI_OUT` carregam forte sinal preditivo."
@@ -1383,12 +1391,9 @@ def ml_critical_tab() -> None:
     st.subheader("Limitações")
     st.markdown(
         """
-        - O modelo supervisionado atual não é uma previsão pré-voo.
         - Variáveis como `DEPARTURE_DELAY`, `TAXI_OUT` e `WHEELS_OFF` aumentam bastante o poder preditivo porque já descrevem a operação em andamento.
         - A base não inclui clima histórico detalhado por aeroporto e horário.
         - Não há dados de manutenção, tripulação, conexões, capacidade aeroportuária ou malha operacional.
-        - A divisão supervisionada é aleatória; uma validação temporal seria mais rigorosa para simular uso futuro.
-        - Na clusterização, o número de clusters foi fixado em 4; outros valores de `k` ainda podem ser avaliados.
         """
     )
 
@@ -1397,11 +1402,10 @@ def ml_critical_tab() -> None:
         """
         **Modelo supervisionado**
 
-        - Criar uma versão pré-voo removendo variáveis conhecidas somente após o início da operação.
+        - Criar uma versão pré-embarque removendo variáveis conhecidas somente após o início da operação.
         - Testar validação temporal, treinando em meses anteriores e testando em meses posteriores.
-        - Avaliar modelos adicionais, como Gradient Boosting, XGBoost, LightGBM ou HistGradientBoosting.
-        - Calibrar o limiar de classificação conforme o objetivo: maior recall ou maior precision.
-        - Usar interpretabilidade com permutation importance ou SHAP.
+        - Avaliar modelos adicionais, como XGBoost.
+        - Calibrar o limiar de classificação para entender impacto no recall ou precision.
 
         **Modelo não supervisionado**
 
