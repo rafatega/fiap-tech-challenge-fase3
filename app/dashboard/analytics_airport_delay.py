@@ -294,6 +294,172 @@ def route_matrix(route_df: pd.DataFrame, min_flights: int, top_n: int) -> None:
         st.dataframe(matrix, use_container_width=True)
 
 
+def geographic_routes_map(route_df: pd.DataFrame, min_flights: int, top_n: int = 120) -> None:
+    route_col = pick_col(route_df, ["ROUTE"])
+    score_col = pick_col(route_df, ["delay_impact_score"])
+    flights_col = pick_col(route_df, ["flights"])
+    delay_col = pick_col(
+        route_df, ["avg_arrival_delay", "avg_arrival_delay_positive"])
+    origin_lat_col = pick_col(route_df, ["ORIGIN_LATITUDE"])
+    origin_lon_col = pick_col(route_df, ["ORIGIN_LONGITUDE"])
+    dest_lat_col = pick_col(route_df, ["DESTINATION_LATITUDE"])
+    dest_lon_col = pick_col(route_df, ["DESTINATION_LONGITUDE"])
+    required = [
+        route_col,
+        score_col,
+        flights_col,
+        delay_col,
+        origin_lat_col,
+        origin_lon_col,
+        dest_lat_col,
+        dest_lon_col,
+    ]
+    if not all(required):
+        show_unavailable(
+            "Mapa de rotas geograficas",
+            "Colunas de rota, coordenadas, volume, atraso ou score nao estao completas.",
+        )
+        return
+
+    filtered = route_df[pd.to_numeric(
+        route_df[flights_col], errors="coerce") >= min_flights].copy()
+    for col in [score_col, flights_col, delay_col, origin_lat_col, origin_lon_col, dest_lat_col, dest_lon_col]:
+        filtered[col] = pd.to_numeric(filtered[col], errors="coerce")
+    top_routes = filtered.dropna(subset=required).nlargest(top_n, score_col)
+    if top_routes.empty:
+        st.info("Nenhuma rota atende ao volume minimo selecionado.")
+        return
+
+    if not HAS_PLOTLY:
+        st.dataframe(friendly_table(top_routes, top_n),
+                     use_container_width=True, hide_index=True)
+        return
+
+    fig = go.Figure()
+    score_min = top_routes[score_col].min()
+    score_range = max(top_routes[score_col].max() - score_min, 1)
+
+    for _, row in top_routes.iterrows():
+        normalized_score = (row[score_col] - score_min) / score_range
+        line_width = 1.5 + normalized_score * 5
+        fig.add_trace(
+            go.Scattergeo(
+                lon=[row[origin_lon_col], row[dest_lon_col]],
+                lat=[row[origin_lat_col], row[dest_lat_col]],
+                mode="lines",
+                line=dict(width=line_width, color="rgba(255, 99, 71, 0.72)"),
+                hoverinfo="text",
+                text=(
+                    f"Rota: {row[route_col]}<br>"
+                    f"Score: {row[score_col]:.2f}<br>"
+                    f"Flights: {row[flights_col]:,.0f}<br>"
+                    f"Atraso medio positivo: {row[delay_col]:.2f} min"
+                ),
+                showlegend=False,
+            )
+        )
+
+    airport_points = pd.concat(
+        [
+            top_routes[[route_col, origin_lat_col, origin_lon_col, score_col]].rename(
+                columns={origin_lat_col: "lat", origin_lon_col: "lon"}
+            ),
+            top_routes[[route_col, dest_lat_col, dest_lon_col, score_col]].rename(
+                columns={dest_lat_col: "lat", dest_lon_col: "lon"}
+            ),
+        ],
+        ignore_index=True,
+    )
+    fig.add_trace(
+        go.Scattergeo(
+            lon=airport_points["lon"],
+            lat=airport_points["lat"],
+            mode="markers",
+            marker=dict(
+                size=7,
+                color=airport_points[score_col],
+                colorscale="YlOrRd",
+                line=dict(width=0.6, color="#ffffff"),
+                colorbar=dict(title="Score"),
+            ),
+            hoverinfo="text",
+            text=airport_points[route_col],
+            showlegend=False,
+        )
+    )
+    fig.update_geos(
+        scope="usa",
+        projection_type="albers usa",
+        showland=True,
+        landcolor="#182132",
+        showocean=True,
+        oceancolor="#0f1420",
+        showlakes=True,
+        lakecolor="#0f1420",
+        bgcolor="#0f1420",
+        subunitcolor="#344054",
+        countrycolor="#344054",
+    )
+    fig.update_layout(
+        title="Top 120 rotas geograficas por score de atraso",
+        height=620,
+        margin=dict(l=10, r=10, t=55, b=10),
+        title_x=0.02,
+        paper_bgcolor="#0f1420",
+        plot_bgcolor="#0f1420",
+        font=dict(color="#f4f7fb"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def route_bubble_chart(route_df: pd.DataFrame, min_flights: int, top_n: int = 120) -> None:
+    route_col = pick_col(route_df, ["ROUTE"])
+    flights_col = pick_col(route_df, ["flights"])
+    delay_col = pick_col(
+        route_df, ["avg_arrival_delay_positive", "avg_arrival_delay"])
+    score_col = pick_col(route_df, ["delay_impact_score"])
+    pct_col = pick_col(route_df, ["delayed_15_pct"])
+    if not all([route_col, flights_col, delay_col, score_col]):
+        show_unavailable(
+            "Grafico de bolhas",
+            "Colunas de rota, flights, avg_arrival_delay_positive ou score nao estao completas.",
+        )
+        return
+
+    filtered = route_df[pd.to_numeric(
+        route_df[flights_col], errors="coerce") >= min_flights].copy()
+    for col in [flights_col, delay_col, score_col]:
+        filtered[col] = pd.to_numeric(filtered[col], errors="coerce")
+    top_routes = filtered.dropna(
+        subset=[route_col, flights_col, delay_col, score_col]).nlargest(top_n, score_col)
+    if top_routes.empty:
+        st.info("Nenhuma rota atende ao volume minimo selecionado.")
+        return
+
+    if HAS_PLOTLY:
+        hover_cols = [pct_col] if pct_col else None
+        fig = px.scatter(
+            top_routes,
+            x=flights_col,
+            y=delay_col,
+            size=score_col,
+            color=score_col,
+            hover_name=route_col,
+            hover_data=hover_cols,
+            title="Top 120 rotas: volume, atraso medio positivo e score",
+            color_continuous_scale="YlOrRd",
+            size_max=44,
+            template="plotly_dark",
+        )
+        fig.update_layout(height=520, margin=dict(
+            l=10, r=10, t=55, b=10), title_x=0.02)
+        fig.update_xaxes(title="Flights")
+        fig.update_yaxes(title="Avg arrival delay positive (min)")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.scatter_chart(top_routes[[flights_col, delay_col]])
+
+
 def profile_summary(profile: pd.DataFrame | None) -> dict[str, float]:
     if profile is None or profile.empty:
         return {"columns": 0, "missing_cols": 0, "total_missing": 0, "max_missing_pct": 0}
@@ -738,11 +904,13 @@ def routes_airports_tab(route_df: pd.DataFrame | None, min_flights: int, top_n: 
         show_unavailable("Rotas e aeroportos")
         return
 
-    route_matrix(route_df, min_flights=min_flights, top_n=max(top_n, 15))
+    geographic_routes_map(route_df, min_flights=min_flights, top_n=120)
+    route_bubble_chart(route_df, min_flights=min_flights, top_n=120)
 
     route_col = pick_col(route_df, ["ROUTE"])
     flights_col = pick_col(route_df, ["flights"])
-    delay_col = pick_col(route_df, ["avg_arrival_delay"])
+    delay_col = pick_col(
+        route_df, ["avg_arrival_delay_positive", "avg_arrival_delay"])
     pct_col = pick_col(route_df, ["delayed_15_pct"])
     score_col = pick_col(route_df, ["delay_impact_score"])
     if all([route_col, flights_col, delay_col, pct_col, score_col]):
