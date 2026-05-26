@@ -1,0 +1,5 @@
+metric,value
+sample_rows,178871.0
+train_rows,134153.0
+test_rows,44718.0
+delayed_15_rate_sample,0.18558066986822905
