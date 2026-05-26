@@ -281,6 +281,53 @@ Foi usado:
 
 - `KMeans`
 
+### Definicao da quantidade de clusters
+
+Antes de fixar o numero de clusters, foi criada uma analise de cotovelo no script:
+
+- `app/machine-learning/elbow_analysis.py`
+
+Esse script usa a mesma base, o mesmo filtro e as mesmas features da clusterizacao final:
+
+- base: `app/database/outputs/completed_route_delay_profile.csv`
+- filtro: rotas com pelo menos `500` voos
+- features: `flights`, `delayed_flights`, `avg_arrival_delay_positive`, `delayed_15_pct`, `adjusted_delay_pct`, `delay_impact_score`
+- escala: `StandardScaler`
+- algoritmo: `KMeans`
+
+Foram testados valores de `k` de 2 ate 10. Para cada valor, foram calculados:
+
+- `inertia`: soma das distancias internas dos pontos ate seus centroides;
+- `silhouette_score`: medida de separacao e coesao dos clusters.
+
+Resultado da analise:
+
+| k | inertia | silhouette_score | recomendado pelo elbow |
+|---:|---:|---:|---|
+| 2 | 10.491,34 | 0,3780 | Nao |
+| 3 | 7.078,74 | 0,3975 | Nao |
+| 4 | 5.412,42 | 0,3484 | Sim |
+| 5 | 4.493,68 | 0,3615 | Nao |
+| 6 | 3.862,48 | 0,3238 | Nao |
+| 7 | 3.412,36 | 0,3322 | Nao |
+| 8 | 3.095,52 | 0,2963 | Nao |
+| 9 | 2.809,39 | 0,3024 | Nao |
+| 10 | 2.573,80 | 0,3091 | Nao |
+
+A heuristica do cotovelo indicou `k = 4`.
+
+Observacao importante:
+
+> O maior `silhouette_score` ocorreu em `k = 3`, mas `k = 4` foi mantido porque ofereceu uma segmentacao mais granular e interpretavel para o negocio, separando melhor rotas de alto volume, alto impacto, comportamento intermediario e menor criticidade.
+
+Arquivos gerados:
+
+- `app/machine-learning/outputs/elbow_analysis/elbow_analysis_results.csv`
+- `app/machine-learning/outputs/elbow_analysis/elbow_curve.html`
+- `app/machine-learning/outputs/elbow_analysis/elbow_curve.png`
+- `app/machine-learning/outputs/elbow_analysis/silhouette_by_k.html`
+- `app/machine-learning/outputs/elbow_analysis/silhouette_by_k.png`
+
 Configuracao:
 
 ```python
@@ -458,7 +505,8 @@ Esse grafico ajuda a identificar rapidamente quais grupos devem receber priorida
 
 ### Para a clusterizacao
 
-- Testar diferentes valores de `k` e comparar `silhouette_score`, inercia e interpretabilidade.
+- Avaliar estabilidade dos clusters ao longo do tempo.
+- Reavaliar valores de `k` se novas features forem adicionadas.
 - Avaliar outros algoritmos, como DBSCAN, HDBSCAN ou Gaussian Mixture Models.
 - Criar clusterizacoes por aeroporto, companhia aerea, estado ou periodo do dia.
 - Comparar clusters por estabilidade temporal.
@@ -518,3 +566,8 @@ Nao supervisionado:
 - `unsupervised_cluster_summary.csv`
 - `unsupervised_route_clusters_pca.html`
 - `unsupervised_cluster_summary.html`
+- `elbow_analysis/elbow_analysis_results.csv`
+- `elbow_analysis/elbow_curve.html`
+- `elbow_analysis/elbow_curve.png`
+- `elbow_analysis/silhouette_by_k.html`
+- `elbow_analysis/silhouette_by_k.png`

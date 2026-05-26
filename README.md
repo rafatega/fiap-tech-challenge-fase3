@@ -134,6 +134,24 @@ Resultados:
 - `silhouette_score`: 0,3484
 - variância explicada pelo PCA 2D: 96,70%
 
+### Definição da quantidade de clusters
+
+Para justificar o número de clusters, foi criada uma análise de cotovelo em:
+
+- `app/machine-learning/elbow_analysis.py`
+
+O script testou valores de `k` entre 2 e 10, usando a mesma base, filtro e features da clusterização final. A heurística do cotovelo apontou:
+
+- `k = 4`
+
+O melhor `silhouette_score` apareceu em `k = 3`, mas `k = 4` foi mantido porque trouxe uma segmentação mais granular e interpretável para o negócio, separando melhor rotas de alto volume, alto impacto, comportamento intermediário e menor criticidade.
+
+Artefatos gerados:
+
+- `app/machine-learning/outputs/elbow_analysis/elbow_analysis_results.csv`
+- `app/machine-learning/outputs/elbow_analysis/elbow_curve.png`
+- `app/machine-learning/outputs/elbow_analysis/silhouette_by_k.png`
+
 Interpretação:
 
 - os clusters apresentam separação moderada;
@@ -280,6 +298,8 @@ Machine Learning:
 - `app/machine-learning/outputs/supervised_confusion_matrix.html`
 - `app/machine-learning/outputs/unsupervised_cluster_summary.csv`
 - `app/machine-learning/outputs/unsupervised_route_clusters.csv`
+- `app/machine-learning/outputs/elbow_analysis/*.csv`
+- `app/machine-learning/outputs/elbow_analysis/*.png`
 - `app/machine-learning/outputs/*.joblib`
 
 Outliers:
@@ -302,7 +322,7 @@ Outliers:
 - Não foram usados dados climáticos detalhados por aeroporto e horário.
 - Não há dados de manutenção, tripulação, conexões ou capacidade aeroportuária.
 - A validação supervisionada atual usa divisão aleatória, não validação temporal.
-- O número de clusters foi fixado em 4.
+- O número de clusters foi definido como 4 a partir da análise de cotovelo.
 
 ## Próximos passos
 
@@ -311,7 +331,7 @@ Outliers:
 - Testar modelos adicionais, como Gradient Boosting, XGBoost, LightGBM ou HistGradientBoosting.
 - Calibrar o limiar de classificação conforme o objetivo operacional.
 - Enriquecer a base com clima histórico, feriados e sazonalidade.
-- Testar diferentes valores de `k` na clusterização.
+- Avaliar estabilidade dos clusters ao longo do tempo.
 - Avaliar clusterizações por aeroporto, companhia aérea, estado ou período do dia.
 
 ## Documentações detalhadas
