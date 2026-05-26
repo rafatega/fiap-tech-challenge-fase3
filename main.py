@@ -1,6 +1,1 @@
-def main():
-    print("Hello from fiap-tech-challenge-fase3!")
-
-
-if __name__ == "__main__":
-    main()
+# .\.venv\Scripts\python.exe -m streamlit run app\dashboard\analytics_airport_delay.py
