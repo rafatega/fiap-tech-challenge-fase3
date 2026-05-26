@@ -25,6 +25,7 @@ DATABASE_OUTPUTS_DIR = DATABASE_DIR / "outputs"
 EDA_OUTPUTS_DIR = ROOT_DIR / "app" / "eda" / "outputs"
 ML_OUTPUTS_DIR = ROOT_DIR / "app" / "machine-learning" / "outputs"
 OUTLIER_OUTPUTS_DIR = ML_OUTPUTS_DIR / "outlier_study"
+ELBOW_OUTPUTS_DIR = ML_OUTPUTS_DIR / "elbow_analysis"
 
 RAW_TABLES = {
     "Airlines": DATABASE_DIR / "airlines.csv",
@@ -1225,6 +1226,23 @@ def ml_unsupervised_tab() -> None:
     c3.metric("Variância PCA 2D", format_pct(
         pca_variance.iloc[0] if not pca_variance.empty else None, 2))
 
+    st.subheader("O que cada cluster representa")
+    st.markdown(
+        """
+        - **Cluster 3:** rotas de alto volume e alto impacto. Tem a maior média de voos por rota e o maior score médio de impacto. É o grupo mais importante para priorização operacional.
+        - **Cluster 1:** rotas com maior atraso médio positivo e maior percentual médio de atraso de 15+ minutos. Mesmo com volume menor que o cluster 3, concentra maior severidade relativa de atraso.
+        - **Cluster 0:** rotas intermediárias. Apresenta volume, atraso e score em uma faixa média, servindo como grupo de comparação operacional.
+        - **Cluster 2:** rotas menos críticas dentro do recorte analisado. Possui menor atraso médio positivo, menor percentual de atraso e menor score médio de impacto.
+        """
+    )
+
+    st.subheader("Gráficos exportados")
+    st.markdown(
+        "Cada ponto representa uma rota. A cor indica o cluster e o tamanho indica o volume de voos."
+    )
+    show_html_artifact(
+        ML_OUTPUTS_DIR / "unsupervised_route_clusters_pca.html", 650)
+
     st.subheader("Resumo dos clusters")
     display_summary = summary.copy()
     numeric_cols = display_summary.select_dtypes(include="number").columns
@@ -1246,22 +1264,46 @@ def ml_unsupervised_tab() -> None:
             l=10, r=10, t=55, b=10), title_x=0.02)
         st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("O que cada cluster representa")
-    st.markdown(
-        """
-        - **Cluster 3:** rotas de alto volume e alto impacto. Tem a maior média de voos por rota e o maior score médio de impacto. É o grupo mais importante para priorização operacional.
-        - **Cluster 1:** rotas com maior atraso médio positivo e maior percentual médio de atraso de 15+ minutos. Mesmo com volume menor que o cluster 3, concentra maior severidade relativa de atraso.
-        - **Cluster 0:** rotas intermediárias. Apresenta volume, atraso e score em uma faixa média, servindo como grupo de comparação operacional.
-        - **Cluster 2:** rotas menos críticas dentro do recorte analisado. Possui menor atraso médio positivo, menor percentual de atraso e menor score médio de impacto.
-        """
-    )
+    st.subheader("Por que usamos 4 clusters")
+    elbow_results_path = ELBOW_OUTPUTS_DIR / "elbow_analysis_results.csv"
+    elbow_png_path = ELBOW_OUTPUTS_DIR / "elbow_curve.png"
+    silhouette_png_path = ELBOW_OUTPUTS_DIR / "silhouette_by_k.png"
+    if elbow_results_path.exists():
+        elbow_results = load_csv(str(elbow_results_path))
+        recommended_rows = elbow_results[
+            elbow_results["recommended_by_elbow"].astype(str).str.lower() == "true"
+        ]
+        recommended_k = (
+            int(recommended_rows.iloc[0]["k"]) if not recommended_rows.empty else None
+        )
+        st.markdown(
+            f"""
+            Para justificar a quantidade de grupos, foi executada uma análise de cotovelo testando diferentes valores de `k`.
+            A heurística do cotovelo apontou **k = {recommended_k}**, que foi mantido na clusterização final.
 
-    st.subheader("Gráficos exportados")
-    st.markdown(
-        "Cada ponto representa uma rota. A cor indica o cluster e o tamanho indica o volume de voos."
-    )
-    show_html_artifact(
-        ML_OUTPUTS_DIR / "unsupervised_route_clusters_pca.html", 650)
+            O silhouette teve melhor valor em `k = 3`, mas `k = 4` trouxe uma segmentação mais granular e interpretável para o negócio,
+            separando melhor rotas de alto volume, alto impacto, comportamento intermediário e menor criticidade.
+            """
+        )
+        st.dataframe(
+            elbow_results[["k", "inertia", "silhouette_score", "recommended_by_elbow"]].round(4),
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("Resultados da análise de cotovelo não encontrados.")
+
+    elbow_cols = st.columns(2)
+    with elbow_cols[0]:
+        if elbow_png_path.exists():
+            st.image(str(elbow_png_path), caption="Curva do cotovelo", use_container_width=True)
+        else:
+            st.info("Imagem da curva do cotovelo não encontrada.")
+    with elbow_cols[1]:
+        if silhouette_png_path.exists():
+            st.image(str(silhouette_png_path), caption="Silhouette por k", use_container_width=True)
+        else:
+            st.info("Imagem de silhouette por k não encontrada.")
 
     st.subheader("Rotas por cluster")
     cluster_options = sorted(routes["cluster"].dropna().unique().tolist())
