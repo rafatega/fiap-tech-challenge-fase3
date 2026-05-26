@@ -20,6 +20,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, RobustScaler, StandardScaler
 
+"""
+Eu comparei os voos com valores mais extremos contra o restante da base. 
+Em algumas variáveis, como atraso de partida e tempo de taxiamento, os valores extremos tinham uma taxa de atraso muito maior. 
+Isso mostra que esses extremos não são sujeira nos dados, mas informação real sobre o problema. 
+Por isso, removê-los poderia prejudicar o modelo.”
+"""
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATABASE_DIR = ROOT_DIR / "app" / "database"
@@ -65,10 +71,13 @@ CATEGORICAL_FEATURES = [
 
 # Columns where a rare value can be real operational information, not bad data.
 OUTLIER_FEATURES = [
-    "SCHEDULED_TIME",
+    "DAY_OF_WEEK",
+    "SCHEDULED_DEPARTURE_HOUR",
+    "SCHEDULED_ARRIVAL_HOUR",
     "DISTANCE",
     "DEPARTURE_DELAY",
     "TAXI_OUT",
+    "WHEELS_OFF",
 ]
 
 USECOLS = NUMERIC_FEATURES + CATEGORICAL_FEATURES + [TARGET]

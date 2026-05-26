@@ -67,8 +67,9 @@ ROUTE_PROFILE_PATH = DATABASE_DIR / "outputs" / \
 # experimentos de forma justa.
 RANDOM_STATE = 42
 
-# Como flights_treated.csv pode ser grande, treinamos com uma amostra controlada.
-# Isso reduz custo computacional e ainda permite manter uma avaliacao consistente.
+# Como flights_treated.csv pode ser grande, a amostragem pode ser ligada para
+# acelerar experimentos ou desligada para treinar com a base inteira.
+USE_SAMPLE = False
 SUPERVISED_SAMPLE_SIZE = 180_000
 CHUNK_SIZE = 250_000
 
@@ -122,19 +123,19 @@ SUPERVISED_USECOLS = NUMERIC_FEATURES + CATEGORICAL_FEATURES + [TARGET]
 
 
 # =============================================================================
-# 2. Carregamento amostral do dataset supervisionado
+# 2. Carregamento do dataset supervisionado
 # =============================================================================
 
 if not FLIGHTS_TREATED_PATH.exists():
     raise FileNotFoundError(
         f"Missing treated flights file: {FLIGHTS_TREATED_PATH}")
 
-supervised_samples: list[pd.DataFrame] = []
+supervised_chunks: list[pd.DataFrame] = []
 rng = np.random.default_rng(RANDOM_STATE)
 
 # A leitura em chunks e uma estrategia comum quando o dataset nao cabe
 # confortavelmente em memoria. Em vez de carregar tudo, processamos blocos e
-# coletamos amostras de cada parte do arquivo.
+# coletamos cada bloco inteiro ou uma amostra de cada parte do arquivo.
 for chunk in pd.read_csv(
     FLIGHTS_TREATED_PATH,
     usecols=lambda col: col in SUPERVISED_USECOLS,
@@ -161,24 +162,26 @@ for chunk in pd.read_csv(
 
     chunk = chunk.dropna(subset=[TARGET])
 
-    # A fracao dinamica tenta manter memoria sob controle sem ignorar regioes do
-    # arquivo. O calculo usa uma estimativa simples do numero de chunks a partir
-    # do tamanho fisico do CSV.
-    expected_chunks = max(1, FLIGHTS_TREATED_PATH.stat().st_size // 85_000_000)
-    frac = min(0.25, max(0.01, SUPERVISED_SAMPLE_SIZE /
-               (expected_chunks * CHUNK_SIZE)))
+    if USE_SAMPLE:
+        # A fracao dinamica tenta manter memoria sob controle sem ignorar regioes do
+        # arquivo. O calculo usa uma estimativa simples do numero de chunks a partir
+        # do tamanho fisico do CSV.
+        expected_chunks = max(1, FLIGHTS_TREATED_PATH.stat().st_size // 85_000_000)
+        frac = min(0.25, max(0.01, SUPERVISED_SAMPLE_SIZE /
+                   (expected_chunks * CHUNK_SIZE)))
 
-    # Cada chunk recebe um random_state derivado do gerador principal. Assim, a
-    # amostragem e reprodutivel, mas nao identica entre chunks.
-    sampled_chunk = chunk.sample(
-        frac=frac, random_state=int(rng.integers(0, 1_000_000)))
-    supervised_samples.append(sampled_chunk)
+        # Cada chunk recebe um random_state derivado do gerador principal. Assim, a
+        # amostragem e reprodutivel, mas nao identica entre chunks.
+        chunk = chunk.sample(
+            frac=frac, random_state=int(rng.integers(0, 1_000_000)))
 
-supervised_data = pd.concat(supervised_samples, ignore_index=True)
+    supervised_chunks.append(chunk)
+
+supervised_data = pd.concat(supervised_chunks, ignore_index=True)
 
 # Caso a amostragem por chunks exceda o tamanho desejado, fazemos um corte final
 # tambem reprodutivel.
-if len(supervised_data) > SUPERVISED_SAMPLE_SIZE:
+if USE_SAMPLE and len(supervised_data) > SUPERVISED_SAMPLE_SIZE:
     supervised_data = supervised_data.sample(
         SUPERVISED_SAMPLE_SIZE, random_state=RANDOM_STATE)
 
@@ -428,7 +431,8 @@ matrix_fig.write_html(OUTPUT_DIR / "supervised_confusion_matrix.html")
 # de atraso na amostra?".
 sample_profile = pd.DataFrame(
     [
-        {"metric": "sample_rows", "value": len(supervised_data)},
+        {"metric": "use_sample", "value": USE_SAMPLE},
+        {"metric": "supervised_rows", "value": len(supervised_data)},
         {"metric": "train_rows", "value": len(X_train)},
         {"metric": "test_rows", "value": len(X_test)},
         {"metric": "delayed_15_rate_sample", "value": y.mean()},
