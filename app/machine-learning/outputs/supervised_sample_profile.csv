@@ -1,5 +1,6 @@
 metric,value
-sample_rows,178871.0
-train_rows,134153.0
-test_rows,44718.0
-delayed_15_rate_sample,0.18558066986822905
+use_sample,False
+supervised_rows,5714008
+train_rows,4285506
+test_rows,1428502
+delayed_15_rate_sample,0.18611086998828144
