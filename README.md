@@ -1,9 +1,9 @@
 # FIAP Tech Challenge - Fase 3
 
-**Tema: Análise e modelagem de atrasos em voos nos Estados Unidos**
-**Grupo: 51**
-**Integrante: Rafael Tegazzini**
-**Vídeo de apresentação:** 
+- **Tema: Análise e modelagem de atrasos em voos nos Estados Unidos**
+- **Grupo: 51**
+- **Integrante: Rafael Tegazzini**
+- **Vídeo de apresentação:** https://youtu.be/SDyZYPojJVc ou [Clique aqui!](https://youtu.be/SDyZYPojJVc)
 
 Projeto de análise e modelagem de atrasos em voos nos Estados Unidos, desenvolvido para o Tech Challenge da FIAP.
 
